@@ -14,14 +14,21 @@ import akka.stream.{ActorMaterializer, Materializer}
 
 import scala.concurrent.ExecutionContext
 
-class Endpoints(ufsEndpoint: UfsEndpoint, healthCheckEndpoint: HealthCheckEndpoint) {
+class Endpoints(ufsEndpoint: UfsEndpoint,
+                healthCheckEndpoint: HealthCheckEndpoint,
+                swaggerDocEndpoint: SwaggerDocEndpoint,
+                swaggerSite: SwaggerSite) {
 
   def routes(implicit
             sys: ActorSystem,
              mat: ActorMaterializer,
              ec: ExecutionContext) = loggableRoute {
     Route.seal {
-      ufsEndpoint.ufsRoutes ~ healthCheckEndpoint.healthCheckRoute
+      ufsEndpoint.ufsRoutes ~
+        healthCheckEndpoint.healthCheckRoute ~
+        swaggerDocEndpoint.routes ~
+        swaggerSite.swaggerSiteRoute
+
     }
   }
 

@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.softwaremill.macwire._
 import com.typesafe.config.ConfigFactory
-import eti.italiviocorrea.ufs.endpoints.{Endpoints, HealthCheckEndpoint, UfsEndpoint}
+import eti.italiviocorrea.ufs.endpoints.{Endpoints, HealthCheckEndpoint, SwaggerDocEndpoint, SwaggerSite, UfsEndpoint}
 import eti.italiviocorrea.ufs.quill.DBContext
 import eti.italiviocorrea.ufs.repository.UfsRepository
 
@@ -15,6 +15,8 @@ class AllModules extends EndpointModule
 trait EndpointModule extends AkkaModule with RepositoryModule {
   lazy val healthCheckEndpoint = wire[HealthCheckEndpoint]
   lazy val ufsEndpoint = wire[UfsEndpoint]
+  lazy val swaggerDocEndpoint = wire[SwaggerDocEndpoint]
+  lazy val swaggerSite = wire[SwaggerSite]
 
   lazy val endpoints = wire[Endpoints]
 }
