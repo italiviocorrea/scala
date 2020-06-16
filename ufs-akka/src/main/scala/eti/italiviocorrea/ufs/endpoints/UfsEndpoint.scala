@@ -4,6 +4,7 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.server.Directives._
+import akka.pattern.CircuitBreaker
 import akka.stream.Materializer
 import com.typesafe.config.ConfigFactory
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
@@ -19,9 +20,11 @@ import javax.ws.rs._
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 @Path("/dfe/api/v1/ufs")
 class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat: Materializer) {
+
 
   val config = ConfigFactory.load()
   val api = config.getConfig("api")
@@ -34,6 +37,14 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
     atualizar ~
     remover ~
     versao
+
+  val resetTimeout = 1.minute
+  val breaker = new CircuitBreaker(
+    mat.system.scheduler,
+    maxFailures = 5,
+    callTimeout = 5.seconds,
+    resetTimeout
+  )
 
   @GET
   @Produces(Array(MediaType.APPLICATION_JSON))
@@ -51,7 +62,7 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
     pathPrefix(separateOnSlashes(pathPrefixUFs)) {
       pathEndOrSingleSlash {
         get {
-          onComplete(repository.buscarTodos()) {
+          onCompleteWithBreaker(breaker)(repository.buscarTodos()) {
             case Success(ufs) =>
               complete(Marshal(ufs).to[ResponseEntity].map { e => HttpResponse(entity = e, headers = List(Location(s"/dfe/api/v1/ufs/"))) })
             case Failure(e) =>
@@ -79,7 +90,7 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
       pathEndOrSingleSlash {
         post {
           entity(as[Uf]) { uf =>
-            onComplete(repository.save(uf)) {
+            onCompleteWithBreaker(breaker)(repository.save(uf)) {
               case Success(codigo) =>
                 complete(HttpResponse(status = StatusCodes.Created, headers = List(Location(s"/dfe/api/v1/ufs/$codigo"))))
               case Failure(e) =>
@@ -111,7 +122,7 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
     pathPrefix(separateOnSlashes(pathPrefixUFs)) {
       path(IntNumber) { codigo =>
         get {
-          onComplete(repository.buscarPorCodigo(codigo)) {
+          onCompleteWithBreaker(breaker)(repository.buscarPorCodigo(codigo)) {
             case Success(Some(ufs)) =>
               complete(Marshal(ufs).to[ResponseEntity].map { e => HttpResponse(entity = e) })
             case Success(None) =>
@@ -146,7 +157,7 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
       path(IntNumber) { codigo =>
         put {
           entity(as[Uf]) { uf =>
-            onComplete(repository.update(codigo, uf)) {
+            onCompleteWithBreaker(breaker)(repository.update(codigo, uf)) {
               case Success(id) =>
                 complete(HttpResponse(status = StatusCodes.NoContent, headers = List(Location(s"/dfe/api/v1/ufs/$codigo"))))
               case Failure(e) =>
@@ -175,7 +186,7 @@ class UfsEndpoint(repository: UfsRepository)(implicit ec: ExecutionContext, mat:
     pathPrefix(separateOnSlashes(pathPrefixUFs)) {
       path(IntNumber) { codigo =>
         delete {
-          onComplete(repository.remover(codigo)) {
+          onCompleteWithBreaker(breaker)(repository.remover(codigo)) {
             case Success(id) =>
               complete(HttpResponse(status = StatusCodes.NoContent, headers = List(Location(s"/dfe/api/v1/ufs/"))))
             case Failure(e) =>

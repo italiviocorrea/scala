@@ -12,6 +12,7 @@ class SwaggerSite extends Directives {
 
   val swaggerSiteRoute: server.Route =
     path("swagger-ui") {
-    getFromResource("swagger-ui/index.html")} ~ getFromResourceDirectory("swagger-ui")
+      getFromResource("swagger-ui/index.html")
+    } ~ getFromResourceDirectory("swagger-ui")
 
 }
