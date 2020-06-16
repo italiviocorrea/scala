@@ -1,1 +1,2 @@
-# scala
+# Repositório de projetos em scala
+
